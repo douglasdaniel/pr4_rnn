@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import pdb
+from math import sqrt
 import numpy as np
 
 LEARN_RATE = 1e-3
@@ -77,11 +78,6 @@ def model(data):
         
     return final_output
 
-def accuracy(predicts, labels):
-    diff = tf.subtract(predicts,labels)
-    acc_rat = tf.divide(diff,labels)
-    accurate = tf.reduce_mean(acc_rat)
-    
-    return accurate
+
 
 

@@ -4,15 +4,17 @@ import pickle
 import pdb
 import numpy as np
 import tensorflow as tf
-from model import model, accuracy
+from aux import accuracy
+from model import model
+
 
 
 DISPLAY_STEP = 100
-MAX_ITERATIONS = 10001
+MAX_ITERATIONS = 10000
 N_TRAIN_SEQ = 7900
 N_TEST_SEQ = 100
 batch_size = 5
-LEARN_RATE = 1e-3
+LEARN_RATE = 0.1
 
 
 # load the dataset into memory
@@ -80,9 +82,11 @@ with tf.Session(graph=graph) as session:
         _, lass, predictions = session.run([optimizer, loss, predict_op],feed_dict=feed_dict)
 
         if step % DISPLAY_STEP == 0:
-            train_accuracy = accuracy(predictions, label_batch)
-            test_accuracy = accuracy(test_predictions.eval(), test_labels)
-            message = "step {:4d} : loss is {:6.2f}, training accuracy= {:2.2f} %, testing accuracy= {:2.2f} %".format(step, lass, train_accuracy, test_accuracy)
+            # Compute the average pixed distance error on both sets
+            # Compute the average error for each joint on test set
+            train_apde,_ = accuracy(predictions, label_batch)
+            test_apde, errPerJnt = accuracy(test_predictions.eval(), test_labels)
+            message = "step {:4d} : loss is {:6.2f}, training APDE= {:2.2f} %, testing APDE= {:2.2f} %".format(step, lass, train_apde, test_apde)
             print(message)
 
     save_path = saver.save(session, "./my_model")
