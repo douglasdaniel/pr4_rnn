@@ -28,6 +28,7 @@ def model(data):
             kernel_size=[5,5],
             padding="valid",
             activation=tf.nn.relu)
+
         
         # Pooling Layer #1
         pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[3, 3], strides=2)

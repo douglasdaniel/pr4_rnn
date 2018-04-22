@@ -9,10 +9,10 @@ from model import model
 
 
 DISPLAY_STEP = 100
-MAX_ITERATIONS = 300
+MAX_ITERATIONS = 201 # +1
 rand = random.sample(range(MAX_ITERATIONS), MAX_ITERATIONS)
 N_TRAIN_SEQ = 7500
-N_TEST_SEQ = 500
+N_TEST_SEQ = 50
 batch_size = 3
 LEARN_RATE = 0.2
 
@@ -75,7 +75,7 @@ with tf.Session(graph=graph) as session:
     writer = tf.summary.FileWriter('./output', session.graph)
     print('Initialized')
     
-    for step in np.arange(MAX_ITERATIONS+1):  
+    for step in np.arange(MAX_ITERATIONS):  
         # Get new batch of data
         offset = (rand[step] * batch_size) % (train_labels.shape[0] - batch_size)
         data_batch = train_data[offset:(offset+batch_size),:]
@@ -91,14 +91,14 @@ with tf.Session(graph=graph) as session:
         # Compute average pixel distance error
         summary2 = tf.Summary()
         train_apde,_ = accuracy(predictions, label_batch)
-        summary2.value.add('train apde', simple_value=train_apde)
+        summary2.value.add(tag='train apde', simple_value=train_apde)
         
         if step % DISPLAY_STEP == 0:
             # Compute the average pixed distance error on both sets
             # Compute the average error for each joint on test set
             test_predictions = session.run(test_op)
             test_apde,errPerJnt = accuracy(test_predictions,test_labels)
-            summary2.value.add('test apde', simple_value=test_apde)
+            summary2.value.add(tag='test apde', simple_value=test_apde)
         
             message = "step {:4d} : loss is {:6.2f}, training APDE= {:2.2f} px, testing APDE= {:2.2f} px".format(step, lass, train_apde, test_apde)
             print(message)
