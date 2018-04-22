@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-import pickle
-import pdb
+import pickle, pdb, random
 import numpy as np
 import tensorflow as tf
 from aux import accuracy
@@ -10,11 +9,13 @@ from model import model
 
 
 DISPLAY_STEP = 100
-MAX_ITERATIONS = 10000
-N_TRAIN_SEQ = 7900
-N_TEST_SEQ = 100
-batch_size = 5
-LEARN_RATE = 0.1
+MAX_ITERATIONS = 300
+rand = random.sample(range(MAX_ITERATIONS), MAX_ITERATIONS)
+N_TRAIN_SEQ = 7500
+N_TEST_SEQ = 500
+batch_size = 3
+LEARN_RATE = 0.2
+
 
 
 # load the dataset into memory
@@ -46,11 +47,12 @@ with graph.as_default():
 
     # Compute predictions using the model
     predict_op= model(tf_train_data)
-    test_predictions= model(tf_test_data)
+    test_op= model(tf_test_data)
 
     # Compute the loss
     loss = tf.losses.mean_squared_error(labels=tf_train_labels,predictions=predict_op)
-    
+    tf.summary.scalar("loss",loss)
+
     # Instantiate optimizer to calculate gradients
     optimizer = tf.train.AdamOptimizer(learning_rate=LEARN_RATE).minimize(loss)
     init_op = tf.global_variables_initializer()
@@ -66,12 +68,16 @@ with graph.as_default():
     # Begin training
     saver = tf.train.Saver()
 
+    merge = tf.summary.merge_all()
 with tf.Session(graph=graph) as session:
     session.run(init_op)
+    
+    writer = tf.summary.FileWriter('./output', session.graph)
     print('Initialized')
-    for step in np.arange(MAX_ITERATIONS):  
+    
+    for step in np.arange(MAX_ITERATIONS+1):  
         # Get new batch of data
-        offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
+        offset = (rand[step] * batch_size) % (train_labels.shape[0] - batch_size)
         data_batch = train_data[offset:(offset+batch_size),:]
         label_batch = train_labels[offset:(offset+batch_size),:]
 
@@ -79,25 +85,26 @@ with tf.Session(graph=graph) as session:
         feed_dict = {tf_train_data : data_batch, tf_train_labels : label_batch}
          
         # Run training
-        _, lass, predictions = session.run([optimizer, loss, predict_op],feed_dict=feed_dict)
-
+        summary,predictions,lass,_ = session.run([merge, predict_op, loss, optimizer],feed_dict=feed_dict)
+        writer.add_summary(summary, step)
+        
+        # Compute average pixel distance error
+        summary2 = tf.Summary()
+        train_apde,_ = accuracy(predictions, label_batch)
+        summary2.value.add('train apde', simple_value=train_apde)
+        
         if step % DISPLAY_STEP == 0:
             # Compute the average pixed distance error on both sets
             # Compute the average error for each joint on test set
-            train_apde,_ = accuracy(predictions, label_batch)
-            test_apde, errPerJnt = accuracy(test_predictions.eval(), test_labels)
-            message = "step {:4d} : loss is {:6.2f}, training APDE= {:2.2f} %, testing APDE= {:2.2f} %".format(step, lass, train_apde, test_apde)
+            test_predictions = session.run(test_op)
+            test_apde,errPerJnt = accuracy(test_predictions,test_labels)
+            summary2.value.add('test apde', simple_value=test_apde)
+        
+            message = "step {:4d} : loss is {:6.2f}, training APDE= {:2.2f} px, testing APDE= {:2.2f} px".format(step, lass, train_apde, test_apde)
             print(message)
 
-    save_path = saver.save(session, "./my_model")
 
-
-
-
-
-
-
-
-
-        
-
+        writer.add_summary(summary2, step)
+    
+        save_path = saver.save(session, "./output/my_model")
+    # Exit Gracefully
